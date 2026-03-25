@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nara Data Dictionary Manager</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.21.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f2; color: #1a1a1a; min-height: 100vh; }
+
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 240px; background: #1c2b1e; color: #fff; display: flex; flex-direction: column; flex-shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .main { flex: 1; overflow-y: auto; padding: 32px; }
+
+    .sidebar-logo { padding: 24px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-logo h1 { font-size: 16px; font-weight: 700; color: #7ecb7e; }
+    .sidebar-logo p { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-group { margin-bottom: 8px; }
+    .nav-group-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.35); padding: 8px 20px 4px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; cursor: pointer; font-size: 13.5px; color: rgba(255,255,255,0.7); transition: all 0.15s; border-left: 3px solid transparent; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(126,203,126,0.12); color: #7ecb7e; border-left-color: #7ecb7e; }
+    .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .sheet-link { display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.45); text-decoration: none; padding: 6px 0; }
+    .sheet-link:hover { color: #7ecb7e; }
+
+    /* Connection badge in sidebar */
+    .conn-badge { display: flex; align-items: center; gap: 7px; font-size: 12px; padding: 7px 0; cursor: pointer; }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .conn-dot.connected { background: #7ecb7e; box-shadow: 0 0 6px #7ecb7e; }
+    .conn-dot.disconnected { background: #ef9a9a; }
+    .conn-dot.checking { background: #ffe082; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .page-header { margin-bottom: 28px; }
+    .page-header h2 { font-size: 22px; font-weight: 700; color: #1c2b1e; }
+    .page-header p { font-size: 14px; color: #666; margin-top: 4px; }
+    .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+    .card { background: #fff; border-radius: 10px; border: 1px solid #e8e8e4; padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 14px; font-weight: 600; color: #1c2b1e; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f0f0ec; display: flex; align-items: center; gap: 8px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-grid.cols-1 { grid-template-columns: 1fr; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.span-2 { grid-column: span 2; }
+    .form-group.span-3 { grid-column: span 3; }
+    label { font-size: 12px; font-weight: 600; color: #444; }
+    label .req { color: #d32f2f; margin-left: 2px; }
+    label .hint { font-weight: 400; color: #888; font-size: 11px; margin-left: 4px; }
+    input[type="text"], input[type="date"], input[type="url"], select, textarea {
+      border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; font-size: 13px; color: #1a1a1a;
+      background: #fff; transition: border-color 0.15s; font-family: inherit; width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #4caf50; box-shadow: 0 0 0 3px rgba(76,175,80,0.1); }
+    textarea { resize: vertical; min-height: 72px; }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 7px; font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: #2e7d32; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #1b5e20; }
+    .btn-secondary { background: #f0f4f0; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .btn-secondary:hover:not(:disabled) { background: #e8f5e9; }
+    .btn-danger { background: #fbe9e7; color: #b71c1c; border: 1px solid #ffcdd2; }
+    .btn-danger:hover:not(:disabled) { background: #ffcdd2; }
+    .btn-ghost { background: transparent; color: #666; border: 1px solid #ddd; }
+    .btn-ghost:hover:not(:disabled) { background: #f5f5f5; }
+    .btn-warning { background: #fff8e1; color: #f57f17; border: 1px solid #ffe082; }
+    .btn-warning:hover:not(:disabled) { background: #fff3cd; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0ec; align-items: center; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-draft { background: #fff8e1; color: #f57f17; }
+    .badge-approved { background: #e8f5e9; color: #2e7d32; }
+    .badge-deprecated { background: #fbe9e7; color: #b71c1c; }
+    .badge-new { background: #e3f2fd; color: #1565c0; }
+
+    .output-box { background: #f8fbf8; border: 1px solid #c8e6c9; border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .output-box h4 { font-size: 12px; font-weight: 700; color: #2e7d32; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .output-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .output-table td { padding: 5px 8px; border-bottom: 1px solid #e8f5e9; vertical-align: top; }
+    .output-table td:first-child { font-weight: 600; color: #555; width: 160px; white-space: nowrap; }
+    .output-table tr:last-child td { border-bottom: none; }
+
+    /* Toast */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; pointer-events: none; }
+    .toast { background: #1c2b1e; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); animation: slideIn 0.2s ease; min-width: 280px; }
+    .toast.error { background: #b71c1c; }
+    .toast.warning { background: #e65100; }
+    @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* Loading spinner */
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .spinner-green { border-color: rgba(46,125,50,0.2); border-top-color: #2e7d32; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Success state */
+    .success-flash { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 14px 16px; margin-top: 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #1b5e20; font-weight: 500; }
+
+    /* Form tabs */
+    .form-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e8e8e4; }
+    .form-tab { padding: 9px 18px; font-size: 13px; font-weight: 500; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+    .form-tab.active { color: #2e7d32; border-bottom-color: #2e7d32; font-weight: 600; }
+    .form-tab:hover:not(.active) { color: #444; }
+
+    /* Info banners */
+    .info-banner { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #1b5e20; display: flex; align-items: flex-start; gap: 10px; }
+    .info-banner .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .warn-banner { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #7b4f00; display: flex; align-items: flex-start; gap: 10px; }
+    .error-banner { background: #fbe9e7; border: 1px solid #ffcdd2; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #b71c1c; display: flex; align-items: flex-start; gap: 10px; }
+
+    /* Quick links */
+    .quick-links { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+    .quick-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fff; border: 1px solid #e0e7e0; border-radius: 20px; font-size: 12.5px; color: #2e7d32; text-decoration: none; font-weight: 500; transition: all 0.15s; }
+    .quick-link:hover { background: #e8f5e9; border-color: #a5d6a7; }
+
+    /* Chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .chip { background: #e8f5e9; color: #2e7d32; border-radius: 12px; padding: 3px 10px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
+    .chip:hover { border-color: #4caf50; }
+    .chip.active { background: #2e7d32; color: #fff; }
+
+    /* Setup / Settings modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .modal { background: #fff; border-radius: 14px; padding: 32px; max-width: 620px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 20px; font-weight: 700; color: #1c2b1e; margin-bottom: 6px; }
+    .modal .subtitle { font-size: 14px; color: #666; margin-bottom: 24px; }
+    .modal-step { display: flex; gap: 14px; margin-bottom: 20px; }
+    .modal-step-num { width: 28px; height: 28px; border-radius: 50%; background: #2e7d32; color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .modal-step-body { flex: 1; }
+    .modal-step-body h4 { font-size: 14px; font-weight: 600; color: #1c2b1e; margin-bottom: 4px; }
+    .modal-step-body p { font-size: 13px; color: #555; line-height: 1.5; }
+    .code-block { background: #1c2b1e; color: #7ecb7e; font-family: monospace; font-size: 12px; padding: 10px 14px; border-radius: 6px; margin-top: 8px; position: relative; }
+    .code-copy { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.1); border: none; color: rgba(255,255,255,0.6); font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer; }
+    .code-copy:hover { background: rgba(255,255,255,0.2); color: #fff; }
+    .url-input-row { display: flex; gap: 8px; margin-top: 10px; }
+    .url-input-row input { flex: 1; }
+
+    /* Log table */
+    .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .log-table th { text-align: left; padding: 9px 12px; background: #f5f5f2; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #e8e8e4; }
+    .log-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0ec; vertical-align: top; }
+    .log-table tr:hover td { background: #fafaf8; }
+
+    /* Not-connected notice */
+    .not-connected-notice { background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 20px; margin-bottom: 24px; display: flex; gap: 14px; align-items: flex-start; }
+    .not-connected-notice .icon { font-size: 22px; }
+    .not-connected-notice h4 { font-size: 14px; font-weight: 600; color: #7b4f00; margin-bottom: 4px; }
+    .not-connected-notice p { font-size: 13px; color: #8a6000; }
+
+    @media (max-width: 768px) {
+      .sidebar { width: 60px; }
+      .sidebar-logo p, .nav-group-label, .nav-item span, .conn-badge span { display: none; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.span-2, .form-group.span-3 { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback, useEffect, useRef } = React;
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const SHEET_ID = '1v0R4INmwPLz9FOp_l4iRyv3yj3XDWGun2SCB15J7D-c';
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+const TAB_URLS = {
+  kpi:       `${SHEET_URL}?gid=0`,
+  sources:   `${SHEET_URL}?gid=1527012548`,
+  deps:      `${SHEET_URL}?gid=169413398`,
+  changelog: `${SHEET_URL}?gid=1270697053`,
+};
+const LS_URL_KEY = 'nara_dict_api_url';
+
+const METRIC_TYPES    = ['1. Flag', '2. Base Metric', '3. Metric', '4. KPI'];
+const DOMAINS         = ['Customer', 'Ecommerce', 'Finance', 'Marketing', 'Retail', 'Subscription'];
+const CATEGORIES      = [
+  'Orders (DTC)', 'Orders (Blended)', 'Revenue', 'Order Value', 'Discounting', 'Spend',
+  'Customer Acquisition', 'Marketing Efficiency', 'Channel Performance', 'Website Activity',
+  'Customer Lifecycle', 'Customer Value', 'Subscriber Base', 'Transaction Volume',
+  'Store Performance', 'Adoption', 'Churn', 'Repeat Behavior', 'Marketing Engagement',
+  'App Engagement', 'Checkout', 'Funnel Performance', 'Refunds & Returns', 'Sell-Through',
+  'Profitability', 'Cost Structure', 'Data Quality', 'Pipeline Health', 'Data Governance',
+  'Forecast Accuracy', 'Experiment Impact', 'Channel Mix', 'Orders',
+];
+const LIFECYCLE_STATES = ['Customer', 'Subscriber', 'Visitor'];
+const METRIC_GRAINS    = [
+  'Customer', 'Customer / Cohort', 'Day', 'Month', 'Order', 'Order / Customer',
+  'Order / PO / Month', 'Order Line', 'PO / Month', 'PO / Week / Month',
+  'SKU / Week / Month', 'Session', 'Subscription', 'User',
+];
+const TIME_WINDOWS     = ['30/60/90/180/365-day horizons', 'All', 'Cohort (Monthly)', 'Daily', 'Monthly', 'Quarterly', 'Weekly'];
+const STATUSES         = ['Draft', 'Approved', 'Deprecated'];
+const CHANGE_TYPES     = ['New', 'Update', 'Deprecate'];
+const REFRESH_CADENCES = ['Daily', 'Weekly', 'Monthly', 'Real-time', 'Manual', 'Ad hoc'];
+const KNOWN_SOURCES    = ['Shopify', 'Recharge', 'Facebook Ads', 'GA4', 'Klaviyo', 'Nara App - Firebase', 'Google Ads', 'Gorgias', 'TikTok', 'Daasity BSD', 'Target POS'];
+const TODAY            = new Date().toISOString().split('T')[0];
+
+// ── API layer ─────────────────────────────────────────────────────────────
+async function apiCall(apiUrl, payload) {
+  const res = await fetch(apiUrl, {
+    method: 'POST',
+    // text/plain avoids CORS preflight, required for Apps Script
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { throw new Error(`Unexpected response: ${text.slice(0, 200)}`); }
+}
+
+async function testConnection(apiUrl) {
+  const res = await fetch(apiUrl, { method: 'GET', redirect: 'follow' });
+  const text = await res.text();
+  // If Google redirected us to a login page, the response will be HTML not JSON
+  if (text.trim().startsWith('<')) {
+    throw new Error('AUTH_REDIRECT');
+  }
+  const json = JSON.parse(text);
+  if (!json.ok && json.error) throw new Error(json.error);
+  return json.status === 'connected';
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function ToastContainer({ toasts }) {
+  return (
+    <div className="toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className={`toast ${t.type}`}>
+          <span>{t.type === 'error' ? '✗' : t.type === 'warning' ? '⚠' : '✓'}</span>
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+  const show = useCallback((message, type = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+  return { toasts, show };
+}
+
+// ── Setup Modal ────────────────────────────────────────────────────────────
+function SetupModal({ onSave, onClose, initialUrl }) {
+  const [url, setUrl] = useState(initialUrl || '');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const handleTest = async () => {
+    if (!url.trim()) return;
+    setTesting(true); setTestResult(null);
+    try {
+      const ok = await testConnection(url.trim());
+      setTestResult(ok ? 'connected' : 'failed');
+    } catch(err) {
+      setTestResult(err.message === 'AUTH_REDIRECT' ? 'auth_redirect' : 'failed');
+    }
+    setTesting(false);
+  };
+  const handleSave = () => {
+    if (!url.trim()) return;
+    localStorage.setItem(LS_URL_KEY, url.trim());
+    onSave(url.trim());
+  };
+
+  const copyScript = () => {
+    navigator.clipboard.writeText(`// Paste the entire nara-dictionary-api.gs file here`);
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <h2>🔧 Connect to Google Sheets</h2>
+        <p className="subtitle">
+          A one-time setup deploys a Google Apps Script that lets this app write directly to your spreadsheet.
+          No passwords or API keys needed — it runs as your Google account.
+        </p>
+
+        <div className="modal-step">
+          <div className="modal-step-num">1</div>
+          <div className="modal-step-body">
+            <h4>Open the spreadsheet</h4>
+            <p>Go to <a href={SHEET_URL} target="_blank" style={{color:'#2e7d32'}}>your Nara Data Dictionary</a>, then click <strong>Extensions → Apps Script</strong>.</p>
+          </div>
+        </div>
+
+        <div className="modal-step">
+          <div className="modal-step-num">2</div>
+          <div className="modal-step-body">
+            <h4>Paste the script</h4>
+            <p>Delete any existing code, then paste the entire contents of <strong>nara-dictionary-api.gs</strong> (saved in the same folder as this file).</p>
+            <div className="code-block">
+              📄 nara-dictionary-api.gs — open it in a text editor and copy all
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-step">
+          <div className="modal-step-num">3</div>
+          <div className="modal-step-body">
+            <h4>Deploy as a Web App</h4>
+            <p>Click <strong>Deploy → New deployment</strong>. Use these exact settings:</p>
+            <div className="code-block" style={{marginTop:8, lineHeight:2}}>
+              Type: <strong>Web app</strong>{'\n'}
+              Execute as: <strong>Me</strong>{'\n'}
+              Who has access: <strong>Anyone</strong> ⚠️ must be "Anyone", not "Anyone with Google account"
+            </div>
+            <p style={{marginTop:8, fontSize:12, color:'rgba(255,255,255,0.55)'}}>
+              "Execute as: Me" means the script writes as your account. "Anyone" just means no login prompt is needed to call it — the spreadsheet itself stays private.
+            </p>
+            <p style={{marginTop:6}}>Click <strong>Deploy</strong> and <strong>Authorize access</strong> when prompted.</p>
+          </div>
+        </div>
+
+        <div className="modal-step">
+          <div className="modal-step-num">4</div>
+          <div className="modal-step-body">
+            <h4>Paste your Web App URL here</h4>
+            <p>After deploying, click <strong>Copy</strong> on the URL that looks like <em>https://script.google.com/macros/s/…/exec</em></p>
+            <div className="url-input-row">
+              <input
+                type="url"
+                value={url}
+                onChange={e => { setUrl(e.target.value); setTestResult(null); }}
+                placeholder="https://script.google.com/macros/s/…/exec"
+              />
+              <button className="btn btn-secondary" onClick={handleTest} disabled={!url.trim() || testing}>
+                {testing ? <span className="spinner spinner-green" /> : 'Test'}
+              </button>
+            </div>
+            {testResult === 'connected' && (
+              <div style={{marginTop:8, color:'#2e7d32', fontSize:13, fontWeight:600}}>✓ Connected successfully!</div>
+            )}
+            {testResult === 'auth_redirect' && (
+              <div style={{marginTop:8, fontSize:13}}>
+                <div style={{color:'#b71c1c', fontWeight:600, marginBottom:4}}>✗ Google is requiring a login — wrong access setting</div>
+                <div style={{color:'#555'}}>Go back to Apps Script → Deploy → Manage deployments → edit your deployment → change <strong>"Who has access"</strong> from "Anyone with Google account" to <strong>"Anyone"</strong> → click Deploy.</div>
+              </div>
+            )}
+            {testResult === 'failed' && (
+              <div style={{marginTop:8, fontSize:13}}>
+                <div style={{color:'#b71c1c', fontWeight:600, marginBottom:4}}>✗ Could not connect</div>
+                <div style={{color:'#555', lineHeight:1.6}}>
+                  Check these in order:<br/>
+                  1. The URL ends in <code style={{background:'#f5f5f2',padding:'1px 4px',borderRadius:3}}>/exec</code> (not <code style={{background:'#f5f5f2',padding:'1px 4px',borderRadius:3}}>/dev</code>)<br/>
+                  2. <strong>Who has access</strong> is set to <strong>Anyone</strong><br/>
+                  3. You clicked <strong>Authorize access</strong> after deploying<br/>
+                  4. You're using a <strong>New deployment</strong>, not a dev URL
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{display:'flex', gap:10, marginTop:8}}>
+          <button className="btn btn-primary" onClick={handleSave} disabled={!url.trim()}>
+            Save &amp; Connect
+          </button>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────
+function QuickLinks() {
+  const links = [
+    { label: '📊 KPI Dictionary', url: TAB_URLS.kpi },
+    { label: '🗄️ Data Sources',  url: TAB_URLS.sources },
+    { label: '🔗 Dependencies',  url: TAB_URLS.deps },
+    { label: '📋 Changelog',     url: TAB_URLS.changelog },
+  ];
+  return (
+    <div className="quick-links">
+      {links.map(l => <a key={l.url} href={l.url} target="_blank" className="quick-link">{l.label} ↗</a>)}
+    </div>
+  );
+}
+
+function NotConnectedNotice({ onSetup }) {
+  return (
+    <div className="not-connected-notice">
+      <div className="icon">🔌</div>
+      <div>
+        <h4>Not connected to Google Sheets</h4>
+        <p>Set up your Apps Script connection to write directly to the spreadsheet. <button className="btn btn-warning btn-sm" style={{marginTop:8}} onClick={onSetup}>Run Setup →</button></p>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, hint, required, children, span }) {
+  return (
+    <div className={`form-group${span ? ` span-${span}` : ''}`}>
+      <label>{label}{required && <span className="req">*</span>}{hint && <span className="hint">({hint})</span>}</label>
+      {children}
+    </div>
+  );
+}
+const TextInput = ({ value, onChange, placeholder }) =>
+  <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />;
+const TextArea  = ({ value, onChange, placeholder, rows = 3 }) =>
+  <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows} />;
+const Sel = ({ value, onChange, options, placeholder = 'Select…' }) => (
+  <select value={value} onChange={e => onChange(e.target.value)}>
+    <option value="">{placeholder}</option>
+    {options.map(o => <option key={o} value={o}>{o}</option>)}
+  </select>
+);
+
+// ── Add Metric ─────────────────────────────────────────────────────────────
+const defaultMetric = () => ({
+  metricName:'', metricType:'', domain:'', category:'', lifecycleState:'',
+  businessObjective:'', execDefinition:'', whyItMatters:'', calcSummary:'',
+  formulaLink:'', numerator:'', denominator:'', metricGrain:'', timeWindow:'',
+  inclusions:'', exclusions:'', primaryDimensions:'', systemOfRecord:'',
+  dataSources:'', bqTables:'', lookerPath:'', owner:'', stakeholders:'',
+  refreshCadence:'', dataSLA:'', lastValidated:'', validationMethod:'',
+  caveats:'', upstreamDeps:'', downstreamAssets:'', targets:'',
+  alerting:'', actionTriggered:'', status:'Draft', version:'v1.0', notes:'',
+});
+
+function AddMetricSection({ apiUrl, toast, onSetup }) {
+  const [form, setForm]     = useState(defaultMetric());
+  const [tab, setTab]       = useState(0);
+  const [loading, setLoad]  = useState(false);
+  const [success, setSucc]  = useState(false);
+  const set = key => val => { setForm(f => ({ ...f, [key]: val })); setSucc(false); };
+
+  const kpiRow = f => [
+    f.metricName, f.metricType, f.domain, f.category, f.lifecycleState,
+    f.businessObjective, f.execDefinition, f.whyItMatters, f.calcSummary,
+    f.formulaLink, f.numerator, f.denominator, f.metricGrain, f.timeWindow,
+    f.inclusions, f.exclusions, f.primaryDimensions, f.systemOfRecord,
+    f.dataSources, f.bqTables, f.lookerPath, f.owner, f.stakeholders,
+    f.refreshCadence, f.dataSLA, f.lastValidated, f.validationMethod,
+    f.caveats, f.upstreamDeps, f.downstreamAssets, f.targets,
+    f.alerting, f.actionTriggered, f.status, f.version, f.notes,
+  ];
+  const changelogRow = f => [
+    TODAY, f.metricName, 'New',
+    `Added new metric "${f.metricName}" to KPI Dictionary`,
+    'New metric definition', 'Zach Grinacoff', f.version,
+  ];
+  const depsRow = f => [
+    f.metricName, f.bqTables, f.dataSources, f.upstreamDeps,
+    f.downstreamAssets, f.stakeholders, f.caveats,
+  ];
+
+  const handleWrite = async () => {
+    if (!form.metricName.trim()) { toast('Metric Name is required', 'error'); return; }
+    if (!apiUrl) { toast('Not connected — run setup first', 'warning'); return; }
+    setLoad(true); setSucc(false);
+    try {
+      // Write KPI row
+      const r1 = await apiCall(apiUrl, { action: 'append', tab: 'KPI Dictionary', values: kpiRow(form) });
+      if (!r1.ok) throw new Error(r1.error);
+      // Write changelog row
+      const r2 = await apiCall(apiUrl, { action: 'append', tab: 'Changelog', values: changelogRow(form) });
+      if (!r2.ok) throw new Error(r2.error);
+      // Write dependencies row
+      const r3 = await apiCall(apiUrl, { action: 'append', tab: 'Dependencies', values: depsRow(form) });
+      if (!r3.ok) throw new Error(r3.error);
+      setSucc(true);
+      toast(`✓ "${form.metricName}" added to KPI Dictionary, Changelog, and Dependencies`);
+      setForm(defaultMetric());
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
+    }
+    setLoad(false);
+  };
+
+  const tabs = ['🧩 Core Identity', '🧮 Calculation', '📦 Data & Sources', '👥 Ownership', '✅ Governance'];
+
+  return (
+    <div>
+      <QuickLinks />
+      {!apiUrl && <NotConnectedNotice onSetup={onSetup} />}
+
+      <div className="form-tabs">
+        {tabs.map((t, i) => (
+          <div key={i} className={`form-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</div>
+        ))}
+      </div>
+
+      <div className="card">
+        {tab === 0 && (
+          <div className="form-grid">
+            <Field label="Metric Name" required span={2}><TextInput value={form.metricName} onChange={set('metricName')} placeholder="e.g. Subscription Churn Rate" /></Field>
+            <Field label="Metric Type" required><Sel value={form.metricType} onChange={set('metricType')} options={METRIC_TYPES} /></Field>
+            <Field label="Domain" required><Sel value={form.domain} onChange={set('domain')} options={DOMAINS} /></Field>
+            <Field label="Category" required><Sel value={form.category} onChange={set('category')} options={CATEGORIES} /></Field>
+            <Field label="Lifecycle State"><Sel value={form.lifecycleState} onChange={set('lifecycleState')} options={LIFECYCLE_STATES} /></Field>
+            <Field label="Business Objective" hint="1–2 sentences" span={2}><TextArea value={form.businessObjective} onChange={set('businessObjective')} placeholder="Plain-English business goal this metric serves…" rows={2} /></Field>
+            <Field label="Executive-Friendly Definition" span={2}><TextArea value={form.execDefinition} onChange={set('execDefinition')} placeholder="What it measures, for a non-technical audience…" rows={2} /></Field>
+            <Field label="Why It Matters (Decision Use)" span={2}><TextArea value={form.whyItMatters} onChange={set('whyItMatters')} placeholder="How leadership uses this metric…" rows={2} /></Field>
+          </div>
+        )}
+        {tab === 1 && (
+          <div className="form-grid">
+            <Field label="Calculation Summary (Plain English)" hint="step-by-step" span={2}><TextArea value={form.calcSummary} onChange={set('calcSummary')} placeholder="Step-by-step logic…" rows={3} /></Field>
+            <Field label="Formula / SQL Reference" hint="link or path" span={2}><TextInput value={form.formulaLink} onChange={set('formulaLink')} placeholder="https://… or LookML path" /></Field>
+            <Field label="Numerator"><TextInput value={form.numerator} onChange={set('numerator')} placeholder="e.g. Cancelled subscriptions" /></Field>
+            <Field label="Denominator" hint="N/A for counts"><TextInput value={form.denominator} onChange={set('denominator')} placeholder="e.g. Active subscriptions at period start" /></Field>
+            <Field label="Metric Grain"><Sel value={form.metricGrain} onChange={set('metricGrain')} options={METRIC_GRAINS} /></Field>
+            <Field label="Time Window"><Sel value={form.timeWindow} onChange={set('timeWindow')} options={TIME_WINDOWS} /></Field>
+            <Field label="Inclusions / Filters" span={2}><TextArea value={form.inclusions} onChange={set('inclusions')} placeholder="What's explicitly included…" rows={2} /></Field>
+            <Field label="Exclusions" span={2}><TextArea value={form.exclusions} onChange={set('exclusions')} placeholder="What's explicitly excluded…" rows={2} /></Field>
+            <Field label="Primary Dimensions" hint="semicolons between values" span={2}><TextInput value={form.primaryDimensions} onChange={set('primaryDimensions')} placeholder="e.g. Channel; Product; Cohort Month" /></Field>
+          </div>
+        )}
+        {tab === 2 && (
+          <div className="form-grid">
+            <Field label="System of Record"><TextInput value={form.systemOfRecord} onChange={set('systemOfRecord')} placeholder="e.g. Recharge" /></Field>
+            <Field label="Data Sources (Systems)" hint="semicolons">
+              <TextInput value={form.dataSources} onChange={set('dataSources')} placeholder="e.g. Recharge; Shopify" />
+            </Field>
+            <Field label="Quick-add known sources" span={2}>
+              <div className="chips" style={{marginTop:4}}>
+                {KNOWN_SOURCES.map(s => {
+                  const active = form.dataSources.split(';').map(x=>x.trim()).includes(s);
+                  return (
+                    <span key={s} className={`chip ${active ? 'active' : ''}`} onClick={() => {
+                      const parts = form.dataSources.split(';').map(x=>x.trim()).filter(Boolean);
+                      set('dataSources')(active ? parts.filter(x=>x!==s).join('; ') : [...parts, s].join('; '));
+                    }}>{active ? '✓ ' : '+ '}{s}</span>
+                  );
+                })}
+              </div>
+            </Field>
+            <Field label="BigQuery Dataset.Table(s)" hint="semicolons" span={2}><TextInput value={form.bqTables} onChange={set('bqTables')} placeholder="e.g. nara_prod.subscriptions; nara_prod.orders" /></Field>
+            <Field label="Looker Explore / View / Measure" span={2}><TextInput value={form.lookerPath} onChange={set('lookerPath')} placeholder="e.g. orders → subscriptions.churn_rate" /></Field>
+            <Field label="Upstream Dependencies" hint="ETL pipelines, flags, transforms" span={2}><TextArea value={form.upstreamDeps} onChange={set('upstreamDeps')} placeholder="e.g. Daasity subscription sync; Recharge webhook" rows={2} /></Field>
+            <Field label="Downstream Assets (Dashboards / Reports)" span={2}><TextInput value={form.downstreamAssets} onChange={set('downstreamAssets')} placeholder="e.g. Executive Dashboard; Weekly Ops Report" /></Field>
+          </div>
+        )}
+        {tab === 3 && (
+          <div className="form-grid">
+            <Field label="Owner (Accountable)" required><TextInput value={form.owner} onChange={set('owner')} placeholder="e.g. Data Team" /></Field>
+            <Field label="Primary Stakeholders"><TextInput value={form.stakeholders} onChange={set('stakeholders')} placeholder="e.g. Marketing; Finance" /></Field>
+            <Field label="Refresh Cadence"><Sel value={form.refreshCadence} onChange={set('refreshCadence')} options={REFRESH_CADENCES} /></Field>
+            <Field label="Data SLA (When Available)"><TextInput value={form.dataSLA} onChange={set('dataSLA')} placeholder="e.g. By 9am ET daily" /></Field>
+          </div>
+        )}
+        {tab === 4 && (
+          <div className="form-grid">
+            <Field label="Status" required><Sel value={form.status} onChange={set('status')} options={STATUSES} /></Field>
+            <Field label="Version"><TextInput value={form.version} onChange={set('version')} placeholder="v1.0" /></Field>
+            <Field label="Last Validated Date"><input type="date" value={form.lastValidated} onChange={e => set('lastValidated')(e.target.value)} /></Field>
+            <Field label="Validation Method"><TextInput value={form.validationMethod} onChange={set('validationMethod')} placeholder="e.g. Cross-check vs Recharge dashboard" /></Field>
+            <Field label="Known Caveats / Gotchas" span={2}><TextArea value={form.caveats} onChange={set('caveats')} placeholder="Edge cases, known issues…" rows={2} /></Field>
+            <Field label="Targets / Thresholds"><TextInput value={form.targets} onChange={set('targets')} placeholder="e.g. < 5% monthly" /></Field>
+            <Field label="Alerting (Yes/No + Where)"><TextInput value={form.alerting} onChange={set('alerting')} placeholder="e.g. Yes — Slack #data-alerts" /></Field>
+            <Field label="Action Triggered When Moves" span={2}><TextArea value={form.actionTriggered} onChange={set('actionTriggered')} placeholder="What to investigate if this metric changes unexpectedly…" rows={2} /></Field>
+            <Field label="Notes" span={2}><TextArea value={form.notes} onChange={set('notes')} placeholder="Free-form notes…" rows={2} /></Field>
+          </div>
+        )}
+
+        {success && (
+          <div className="success-flash" style={{marginTop:16}}>
+            ✅ Metric written to KPI Dictionary, Changelog, and Dependencies tabs successfully!
+          </div>
+        )}
+
+        <div className="btn-row">
+          <button className="btn btn-primary" onClick={handleWrite} disabled={loading || !apiUrl}>
+            {loading ? <><span className="spinner" /> Writing…</> : '📤 Write to Google Sheets'}
+          </button>
+          <button className="btn btn-ghost btn-sm" style={{marginLeft:'auto'}} onClick={() => { setForm(defaultMetric()); setSucc(false); }}>
+            🗑 Clear Form
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Update Metric ──────────────────────────────────────────────────────────
+const KPI_FIELDS = [
+  { key:'metricType',     label:'Metric Type',                   col:'B',  type:'select', opts:METRIC_TYPES },
+  { key:'domain',         label:'Domain',                        col:'C',  type:'select', opts:DOMAINS },
+  { key:'category',       label:'Category',                      col:'D',  type:'select', opts:CATEGORIES },
+  { key:'lifecycleState', label:'Lifecycle State',               col:'E',  type:'select', opts:LIFECYCLE_STATES },
+  { key:'businessObjective', label:'Business Objective',         col:'F',  type:'textarea' },
+  { key:'execDefinition', label:'Executive-Friendly Definition', col:'G',  type:'textarea' },
+  { key:'whyItMatters',   label:'Why It Matters',                col:'H',  type:'textarea' },
+  { key:'calcSummary',    label:'Calculation Summary',           col:'I',  type:'textarea' },
+  { key:'formulaLink',    label:'Formula / SQL Reference',       col:'J',  type:'text' },
+  { key:'numerator',      label:'Numerator',                     col:'K',  type:'text' },
+  { key:'denominator',    label:'Denominator',                   col:'L',  type:'text' },
+  { key:'metricGrain',    label:'Metric Grain',                  col:'M',  type:'select', opts:METRIC_GRAINS },
+  { key:'timeWindow',     label:'Time Window',                   col:'N',  type:'select', opts:TIME_WINDOWS },
+  { key:'inclusions',     label:'Inclusions / Filters',          col:'O',  type:'textarea' },
+  { key:'exclusions',     label:'Exclusions',                    col:'P',  type:'textarea' },
+  { key:'primaryDimensions', label:'Primary Dimensions',         col:'Q',  type:'text' },
+  { key:'systemOfRecord', label:'System of Record',              col:'R',  type:'text' },
+  { key:'dataSources',    label:'Data Sources (Systems)',        col:'S',  type:'text' },
+  { key:'bqTables',       label:'BigQuery Dataset.Table(s)',     col:'T',  type:'text' },
+  { key:'lookerPath',     label:'Looker Explore/View/Measure',   col:'U',  type:'text' },
+  { key:'owner',          label:'Owner',                         col:'V',  type:'text' },
+  { key:'stakeholders',   label:'Primary Stakeholders',         col:'W',  type:'text' },
+  { key:'refreshCadence', label:'Refresh Cadence',              col:'X',  type:'select', opts:REFRESH_CADENCES },
+  { key:'dataSLA',        label:'Data SLA',                      col:'Y',  type:'text' },
+  { key:'lastValidated',  label:'Last Validated Date',           col:'Z',  type:'date' },
+  { key:'validationMethod', label:'Validation Method',           col:'AA', type:'text' },
+  { key:'caveats',        label:'Known Caveats / Gotchas',       col:'AB', type:'textarea' },
+  { key:'upstreamDeps',   label:'Upstream Dependencies',         col:'AC', type:'textarea' },
+  { key:'downstreamAssets', label:'Downstream Assets',           col:'AD', type:'text' },
+  { key:'targets',        label:'Targets / Thresholds',         col:'AE', type:'text' },
+  { key:'alerting',       label:'Alerting',                     col:'AF', type:'text' },
+  { key:'actionTriggered', label:'Action Triggered When Moves', col:'AG', type:'textarea' },
+  { key:'status',         label:'Status',                       col:'AH', type:'select', opts:STATUSES },
+  { key:'version',        label:'Version',                      col:'AI', type:'text' },
+  { key:'notes',          label:'Notes',                        col:'AJ', type:'textarea' },
+];
+
+function UpdateMetricSection({ apiUrl, toast, onSetup }) {
+  const [metricName,     setMetricName]   = useState('');
+  const [selectedField,  setField]        = useState('');
+  const [oldValue,       setOldValue]     = useState('');
+  const [newValue,       setNewValue]     = useState('');
+  const [why,            setWhy]          = useState('');
+  const [version,        setVersion]      = useState('');
+  const [loading,        setLoad]         = useState(false);
+  const [success,        setSucc]         = useState(false);
+
+  const fieldDef = KPI_FIELDS.find(f => f.key === selectedField);
+
+  const handleWrite = async () => {
+    if (!metricName.trim()) { toast('Metric Name is required', 'error'); return; }
+    if (!fieldDef)           { toast('Select a field to update', 'error'); return; }
+    if (!newValue.trim())    { toast('New value is required', 'error'); return; }
+    if (!apiUrl)             { toast('Not connected — run setup first', 'warning'); return; }
+    setLoad(true); setSucc(false);
+    try {
+      // Update the field
+      const r1 = await apiCall(apiUrl, {
+        action: 'updateCell', tab: 'KPI Dictionary',
+        metricName, col: fieldDef.col, value: newValue,
+      });
+      if (!r1.ok) throw new Error(r1.error);
+
+      // Also bump version if provided
+      if (version.trim()) {
+        await apiCall(apiUrl, {
+          action: 'updateCell', tab: 'KPI Dictionary',
+          metricName, col: 'AI', value: version,
+        });
+      }
+
+      // Append changelog
+      const changeDesc = `${fieldDef.label} (col ${fieldDef.col}): "${oldValue || '—'}" → "${newValue}"`;
+      const r2 = await apiCall(apiUrl, {
+        action: 'append', tab: 'Changelog',
+        values: [TODAY, metricName, 'Update', changeDesc, why || '—', 'Zach Grinacoff', version || '—'],
+      });
+      if (!r2.ok) throw new Error(r2.error);
+      setSucc(true);
+      toast(`✓ "${metricName}" updated — ${fieldDef.label} changed`);
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
+    }
+    setLoad(false);
+  };
+
+  return (
+    <div>
+      <QuickLinks />
+      {!apiUrl && <NotConnectedNotice onSetup={onSetup} />}
+      <div className="card">
+        <div className="form-grid">
+          <Field label="Metric Name" required span={2}>
+            <TextInput value={metricName} onChange={v => { setMetricName(v); setSucc(false); }} placeholder="Exact metric name as it appears in Col A" />
+          </Field>
+          <Field label="Field to Update" required>
+            <select value={selectedField} onChange={e => { setField(e.target.value); setNewValue(''); }}>
+              <option value="">Select field…</option>
+              {KPI_FIELDS.map(f => <option key={f.key} value={f.key}>Col {f.col} — {f.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Version After Update" hint="e.g. v1.1">
+            <TextInput value={version} onChange={setVersion} placeholder="v1.1" />
+          </Field>
+          <Field label="Old Value" hint="for changelog">
+            <TextInput value={oldValue} onChange={setOldValue} placeholder="Current value…" />
+          </Field>
+          <Field label="New Value" required>
+            {fieldDef?.type === 'select'   ? <Sel value={newValue} onChange={setNewValue} options={fieldDef.opts} />
+            : fieldDef?.type === 'textarea' ? <TextArea value={newValue} onChange={setNewValue} placeholder="New value…" />
+            : fieldDef?.type === 'date'     ? <input type="date" value={newValue} onChange={e => setNewValue(e.target.value)} />
+            : <TextInput value={newValue} onChange={setNewValue} placeholder="New value…" />}
+          </Field>
+          <Field label="Why (reason for change)" span={2}>
+            <TextInput value={why} onChange={setWhy} placeholder="e.g. Updated order logic to exclude test orders" />
+          </Field>
+        </div>
+
+        {metricName && fieldDef && newValue && (
+          <div className="output-box" style={{marginTop:16}}>
+            <h4>📝 Update Preview</h4>
+            <table className="output-table">
+              <tbody>
+                <tr><td>Metric</td><td><strong>{metricName}</strong></td></tr>
+                <tr><td>Field</td><td>{fieldDef.label} (Col {fieldDef.col})</td></tr>
+                {oldValue && <tr><td>Old Value</td><td style={{textDecoration:'line-through',color:'#999'}}>{oldValue}</td></tr>}
+                <tr><td>New Value</td><td style={{color:'#2e7d32',fontWeight:600}}>{newValue}</td></tr>
+                {why && <tr><td>Why</td><td>{why}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {success && <div className="success-flash" style={{marginTop:16}}>✅ Metric and Changelog updated in Google Sheets!</div>}
+
+        <div className="btn-row">
+          <button className="btn btn-primary" onClick={handleWrite} disabled={loading || !apiUrl}>
+            {loading ? <><span className="spinner" /> Writing…</> : '📤 Write to Google Sheets'}
+          </button>
+          <a href={TAB_URLS.kpi} target="_blank" className="btn btn-ghost">Open KPI Dictionary ↗</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Deprecate Metric ───────────────────────────────────────────────────────
+function DeprecateMetricSection({ apiUrl, toast, onSetup }) {
+  const [metricName, setMetricName] = useState('');
+  const [reason,     setReason]     = useState('');
+  const [replacedBy, setReplacedBy] = useState('');
+  const [loading,    setLoad]       = useState(false);
+  const [success,    setSucc]       = useState(false);
+
+  const note = `Deprecated on ${TODAY}. Reason: ${reason || '—'}${replacedBy ? `. Replaced by: ${replacedBy}` : ''}.`;
+
+  const handleWrite = async () => {
+    if (!metricName.trim()) { toast('Metric Name is required', 'error'); return; }
+    if (!reason.trim())     { toast('Reason is required', 'error'); return; }
+    if (!apiUrl)            { toast('Not connected — run setup first', 'warning'); return; }
+    setLoad(true); setSucc(false);
+    try {
+      // Update Status → Deprecated and append to Notes
+      const r1 = await apiCall(apiUrl, {
+        action: 'updateCells', tab: 'KPI Dictionary', metricName,
+        updates: [
+          { col: 'AH', value: 'Deprecated' },
+          { col: 'AJ', value: note },
+        ],
+      });
+      if (!r1.ok) throw new Error(r1.error);
+
+      // Append changelog
+      const r2 = await apiCall(apiUrl, {
+        action: 'append', tab: 'Changelog',
+        values: [TODAY, metricName, 'Deprecate', `Status → Deprecated. ${note}`, reason, 'Zach Grinacoff', '—'],
+      });
+      if (!r2.ok) throw new Error(r2.error);
+      setSucc(true);
+      toast(`✓ "${metricName}" marked as Deprecated`);
+      setMetricName(''); setReason(''); setReplacedBy('');
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
+    }
+    setLoad(false);
+  };
+
+  return (
+    <div>
+      <QuickLinks />
+      {!apiUrl && <NotConnectedNotice onSetup={onSetup} />}
+      <div className="error-banner">
+        <span>⚠️</span>
+        <span>Deprecating a metric marks it as no longer active and logs the change. This cannot be undone automatically — to reverse, use Update Metric to change Status back to Approved.</span>
+      </div>
+      <div className="card">
+        <div className="form-grid">
+          <Field label="Metric Name" required span={2}>
+            <TextInput value={metricName} onChange={v => { setMetricName(v); setSucc(false); }} placeholder="Exact metric name as it appears in Column A" />
+          </Field>
+          <Field label="Reason for Deprecation" required span={2}>
+            <TextArea value={reason} onChange={setReason} placeholder="Why is this metric being deprecated?" rows={2} />
+          </Field>
+          <Field label="Replaced By" hint="if applicable" span={2}>
+            <TextInput value={replacedBy} onChange={setReplacedBy} placeholder="Name of replacement metric, if any" />
+          </Field>
+        </div>
+
+        {metricName && (
+          <div className="output-box" style={{background:'#fbe9e7',borderColor:'#ffcdd2',marginTop:16}}>
+            <h4 style={{color:'#b71c1c'}}>⚠️ What will be written</h4>
+            <table className="output-table">
+              <tbody>
+                <tr><td>Metric</td><td><strong>{metricName}</strong></td></tr>
+                <tr><td>Col AH → Status</td><td><span className="badge badge-deprecated">Deprecated</span></td></tr>
+                <tr><td>Col AJ → Notes</td><td>{note}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {success && <div className="success-flash" style={{marginTop:16}}>✅ Metric deprecated and Changelog updated in Google Sheets!</div>}
+
+        <div className="btn-row">
+          <button className="btn btn-danger" onClick={handleWrite} disabled={loading || !apiUrl}>
+            {loading ? <><span className="spinner" /> Writing…</> : '🗑 Deprecate in Google Sheets'}
+          </button>
+          <a href={TAB_URLS.kpi} target="_blank" className="btn btn-ghost">Open KPI Dictionary ↗</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Data Sources ───────────────────────────────────────────────────────────
+const defaultSource = () => ({
+  system:'', owner:'', primaryUse:'', keyTables:'', ingestion: '', refreshCadence:'', notes:'', docsLinkh='',
+});
+const INGESTION_TYPES = ['Daasity', 'API', 'Manual', 'Fivetran', 'Webhook', 'Other'];
+
+function DataSourcesSection({ apiUrl, toast, onSetup }) {
+  const [mode,    setMode]  = useState('add');
+  const [form,    setForm]  = useState(defaultSource());
+  const [loading, setLoad]  = useState(false);
+  const [success, setSucc]  = useState(false);
+  const set = key => val => { setForm(f => ({ ...f, [key]: val })); setSucc(false); };
+
+  const sourceRow = f => [f.system, f.owner, f.primaryUse, f.keyTables, f.ingestion, f.refreshCadence, f.notes, f.docsLink];
+
+  const handleWrite = async () => {
+    if (!form.system.trim()) { toast('System name is required', 'error'); return; }
+    if (!apiUrl)             { toast('Not connected — run setup first', 'warning'); return; }
+    setLoad(true); setSucc(false);
+    try {
+      if (mode === 'add') {
+        const r1 = await apiCall(apiUrl, { action: 'append', tab: 'Data Sources', values: sourceRow(form) });
+        if (!r1.ok) throw new Error(r1.error);
+        const r2 = await apiCall(apiUrl, {
+          action: 'append', tab: 'Changelog',
+          values: [TODAY, `${form.system} (Data Source)`, 'New', 'Added new data source', '—', 'Zach Grinacoff', '—'],
+        });
+        if (!r2.ok) throw new Error(r2.error);
+      } else {
+        // For updates, find the row by system name (col A) and overwrite the full row
+        const r1 = await apiCall(apiUrl, {
+          action: 'updateCells', tab: 'Data Sources', metricName: form.system,
+          updates: [
+            { col:'B', value: form.owner }, { col:'C', value: form.primaryUse },
+            { col:'D', value: form.keyTables }, { col:'E', value: form.ingestion },
+            { col:'F', value: form.refreshCadence }, { col:'G', value: form.notes }, { col:'H', value: form.docsLink },
+          ],
+        });
+        if (!r1.ok) throw new Error(r1.error);
+        await apiCall(apiUrl, {
+          action: 'append', tab: 'Changelog',
+          values: [TODAY, `${form.system} (Data Source)`, 'Update', 'Updated data source entry', '—', 'Zach Grinacoff', '—'],
+        });
+      }
+      setSucc(true);
+      toast(`✓ Data source "${form.system}" ${mode === 'add' ? 'added' : 'updated'} in Google Sheets`);
+      setForm(defaultSource());
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
+    }
+    setLoad(false);
+  };
+
+  return (
+    <div>
+      <QuickLinks />
+      {!apiUrl && <NotConnectedNotice onSetup={onSetup} />}
+      <div className="card">
+        <div style={{display:'flex',gap:12,marginBottom:16}}>
+          {['add','update'].map(m => (
+            <label key={m} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:13,fontWeight:m===mode?600:400}}>
+              <input type="radio" checked={mode===m} onChange={() => setMode(m)} style={{accentColor:'#2e7d32'}} />
+              {m === 'add' ? 'Add New Data Source' : 'Update Existing'}
+            </label>
+          ))}
+        </div>
+        <div className="form-grid">
+          <Field label="System" required><TextInput value={form.system} onChange={set('system')} placeholder="e.g. Attentive" /></Field>
+          <Field label="Owner"><TextInput value={form.owner} onChange={set('owner')} placeholder="e.g. Marketing Ops" /></Field>
+          <Field label="Primary Use" span={2}><TextInput value={form.primaryUse} onChange={set('primaryUse')} placeholder="e.g. SMS marketing engagement and attribution" /></Field>
+          <Field label="Key Tables / Entities" hint="semicolons" span={2}><TextInput value={form.keyTables} onChange={set('keyTables')} placeholder="e.g. subscribers; messages; clicks" /></Field>
+          <Field label="Ingestion Method"><Sel value={form.ingestion} onChange={set('ingestion')} options={INGESTION_TYPER} /></Field>
+          <Field label="Refresh Cadence"><Sel value={form.refreshCadence} onChange={set('refreshCadence')} options={REFRESH_CADENCES]} /></Field>
+          <Field label="Notes" span={2}><TextArea value={form.notes} onChange={set('notes')} placeholder="Any relevant notes about this data source…" rows={2} /></Field>
+          <Field label="Link to Docs / Setup" span={2}><TextInput value={form.docsLink} onChange={set('docsLink')} placeholder="https://…" /></Field>
+        </div>
+
+        {success && <div className="success-flash" style={{marginTop:16}}>✅ Data source written to Google Sheets!</div>}
+
+        <div className="btn-row">
+          <button className="btn btn-primary" onClick={handleWrite} disabled={loading || !apiUrl}>
+            {loading ? <><span className="spinner" /> Writing…</> : '📤 Write to Google Sheets'}
+          </button>
+          <a href={TAB_URLS.sources} target="_blank" className="btn btn-ghost">Open Data Sources ↗</a>
+          <button className="btn btn-ghost btn-sm" style={{marginLeft:'auto'}} onClick={() => { setForm(defaultSource()); setSucc(false); }}>🗑 Clear</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Dependencies ───────────────────────────────────────────────────────────
+function DependenciesSection({ apiUrl, toast, onSetup }) {
+  const [mode,    setMode]  = useState('add');
+  const [form,    setForm]  = useState({ metricName:'', upstreamTables:'', upstreamOwners:'', transforms:'', downstreamDashboards:'', downstreamStakeholders:'', riskNotes:'' });
+  const [loading, setLoad]  = useState(false);
+  const [success, setSucc]  = useState(false);
+  const set = key => val => { setForm(f => ({ ...f, [key]: val })); setSucc(false); };
+
+  const depsRow = f => [f.metricName, f.upstreamTables, f.upstreamOwners, f.transforms, f.downstreamDashboards, f.downstreamStakeholders, f.riskNotes];
+
+  const handleWrite = async () => {
+    if (!form.metricName.trim()) { toast('Metric Name is required', 'error'); return; }
+    if (!apiUrl)                 { toast('Not connected — run setup first', 'warning'); return; }
+    setLoad(true); setSucc(false);
+    try {
+      if (mode === 'add') {
+        const r = await apiCall(apiUrl, { action: 'append', tab: 'Dependencies', values: depsRow(form) });
+        if (!r.ok) throw new Error(r.error);
+      } else {
+        const r = await apiCall(apiUrl, {
+          action: 'updateCells', tab: 'Dependencies', metricName: form.metricName,
+          updates: [
+            { col:'B', value: form.upstreamTables }, { col:'C', value: form.upstreamOwners },
+            { col:'D', value: form.transforms }, { col:'E', value: form.downstreamDashboards },
+            { col:'F', value: form.downstreamStakeholders }, { col:'G', value: form.riskNotes },
+          ],
+        });
+        if (!r.ok) throw new Error(r.error);
+      }
+      await apiCall(apiUrl, {
+        action: 'append', tab: 'Changelog',
+        values: [TODAY, form.metricName, mode === 'add' ? 'New' : 'Update', `${mode === 'add' ? 'Added' : 'Updated'} Dependencies row`, '—', 'Zach Grinacoff', '—'],
+      });
+      setSucc(true);
+      toast(`✓ Dependencies for "${form.metricName}" ${mode === 'add' ? 'added' : 'updated'}`);
+      setForm({ metricName:'', upstreamTables:'', upstreamOwners:'', transforms:'', downstreamDashboards:'', downstreamStakeholders:'', riskNotes:'' });
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
+    }
+    setLoad(false);
+  };
+
+  return (
+    <div>
+      <QuickLinks />
+      {!apiUrl && <NotConnectedNotice onSetup={onSetup} />}
+      <div className="info-banner">
+        <span className="icon">🔗</span>
+        <span>The Dependencies tab maps each metric's upstream sources and downstream consumers. Values here mirror the corresponding columns in the KPI Dictionary.</span>
+      </div>
+      <div className="card">
+        <div style={{display:'flex',gap:12,marginBottom:16}}>
+          {['add','update'].map(m => (
+            <label key={m} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:13,fontWeight:m===mode?600:400}}>
+              <input type="radio" checked={mode===m} onChange={() => setMode(m)} style={{accentColor:'#2e7d32'}} />
+              {m === 'add' ? 'Add New Row' : 'Update Existing'}
+            </label>
+          ))}
+        </div>
+        <div className="form-grid">
+          <Field label="Metric Name" required hint="Col A" span={2}><TextInput value={form.metricName} onChange={set('metricName')} placeholder="e.g. Subscription Churn Rate" /></Field>
+          <Field label="Upstream Tables / Views" hint="Col B → KPI col T" span={2}><TextInput value={form.upstreamTables} onChange={set('upstreamTables')} placeholder="e.g. nara_prod.subscriptions; nara_prod.orders" /></Field>
+          <Field label="Upstream Owners" hint="Col C → KPI col S" span={2}><TextInput value={form.upstreamOwners} onChange={set('upstreamOwners')} placeholder="e.g. Recharge; Shopify" /></Field>
+          <Field label="Transforms (Daasity/dbt/LookML)" hint="Col D → KPI col AC" span={2}><TextArea value={form.transforms} onChange={set('transforms')} placeholder="e.g. Daasity subscription sync; custom LookML measure" rows={2} /></Field>
+          <Field label="Downstream Dashboards / Reports" hint="Col E → KPI col AD" span={2}><TextInput value={form.downstreamDashboards} onChange={set('downstreamDashboards')} placeholder="e.g. Executive Dashboard; Weekly Ops Report" /></Field>
+          <Field label="Downstream Stakeholders" hint="Col F → KPI col W" span={2}><TextInput value={form.downstreamStakeholders} onChange={set('downstreamStakeholders')} placeholder="e.g. Marketing; Finance" /></Field>
+          <Field label="Risk Notes" hint="Col G → KPI col AB" span={2}><TextArea value={form.riskNotes} onChange={set('riskNotes')} placeholder="Known caveats, data quality risks…" rows={2} /></Field>
+        </div>
+
+        {success && <div className="success-flash" style={{marginTop:16}}>✅ Dependencies row written to Google Sheets!</div>}
+
+        <div className="btn-row">
+          <button className="btn btn-primary" onClick={handleWrite} disabled={loading || !apiUrl}>
+            {loading ? <><span className="spinner" /> Writing…</> : '📤 Write to Google Sheets'}
+          </button>
+          <a href={TAB_URLS.deps} target="_blank" className="btn btn-ghost">Open Dependencies ↗</a>
+          <button className="btn btn-ghost btn-sm" style={{marginLeft:'auto'}} onClick={() => { setForm({ metricName:'', upstreamTables:'', upstreamOwners:'', transforms:'', downstreamDashboards:'', downstreamStakeholders:'', riskNotes:'' }); setSucc(false); }}>🗑 Clear</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Changelog ──────────────────────────────────────────────────────────────
+function ChangelogSection({ apiUrl, toast, onSetup }) {
+  const [entries, setEntries] = useState([{
+    id: Date.now(), date: TODAY, metric:'', changeType:'New', whatChanged:'', why:'', approvedBy:'Zach Grinacoff', version:'v1.0',
+  }]);
+  const [loading, setLoad] = useState(false);
+  const [success, setSucc] = useState(false);
+
+  const addEntry = () => {
+    setSucc(false);
+    setEntries(e => [...e, { id: Date.now(), date: TODAY, metric:'', changeType:'Update', whatChanged:'', why:'', approvedBy:'Zach Grinacoff', version:'' }]);
+  };
+  const removeEntry = id => setEntries(e => e.filter(x => x.id !== id));
+  const setField = (id, key) => val => { setEntries(e => e.map(x => x.id === id ? { ...x, [key]: val } : x)); setSucc(false); };
+
+  const handleWrite = async () => {
+    const incomplete = entries.filter(e => !e.metric.trim() || !e.whatChanged.trim());
+    if (incomplete.length) { toast('All entries need a Metric and What Changed', 'error'); return; }
+    if (!apiUrl) { toast('Not connected — run setup first', 'warning'); return; }
+    setLoad(true); setSucc(false);
+    try {
+      const rows = entries.map(e => [e.date, e.metric, e.changeType, e.whatChanged, e.why, e.approvedBy, e.version]);
+      const r = await apiCall(apiUrl, { action: 'appendMany', tab: 'Changelog', rows });
+      if (!r.ok) throw new Error(r.error);
+      setSucc(true);
+      toast(`✓ ${rows.length} changelog entr${rows.length > 1 ? 'ies' : 'y'} written to Google Sheets`);
+      setEntries([{ id: Date.now(), date: TODAY, metric:'', changeType:'New', whatChanged:'', why:'', approvedBy:'Zach Grinacoff', version:'v1.0' }]);
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
+    }
+    setLoad(false);
+  };
+
+  return (
+    <div>
+      <QuickLinks />
+      {!apiUrl && <NotConnectedNotice onSetup={onSetup} />}
+      <div className="info-banner">
+        <span className="icon">📋</span>
+        <span>Log every change — even small field updates. Use <strong>Add Another Entry</strong> to log multiple changes in one write.</span>
+      </div>
+
+      {entries.map((entry, i) => (
+        <div className="card" key={entry.id}>
+          <div className="card-title">
+            Entry {i + 1}
+            {entries.length > 1 && (
+              <button className="btn btn-ghost btn-sm" style={{marginLeft:'auto',color:'#b71c1c'}} onClick={() => removeEntry(entry.id)}>✕ Remove</button>
+            )}
+          </div>
+          <div className="form-grid cols-3">
+            <Field label="Date" required>
+              <input type="date" value={entry.date} onChange={e => setField(entry.id,'date')(e.target.value)} />
+            </Field>
+            <Field label="Metric" required>
+              <TextInput value={entry.metric} onChange={setField(entry.id,'metric')} placeholder="Metric or data source name" />
+            </Field>
+            <Field label="Change Type" required>
+              <Sel value={entry.changeType} onChange={setField(entry.id,'changeType')} options={CHANGE_TYPES} />
+            </Field>
+            <Field label="What Changed" required span={3}>
+              <TextArea value={entry.whatChanged} onChange={setField(entry.id,'whatChanged')} placeholder="Describe the specific change and old vs. new value…" rows={2} />
+            </Field>
+            <Field label="Why" span={2}>
+              <TextInput value={entry.why} onChange={setField(entry.id,'why')} placeholder="Reason for change…" />
+            </Field>
+            <Field label="Version">
+              <TextInput value={entry.version} onChange={setField(entry.id,'version')} placeholder="v1.0" />
+            </Field>
+            <Field label="Approved By" span={2}>
+              <TextInput value={entry.approvedBy} onChange={setField(entry.id,'approvedBy')} placeholder="Zach Grinacoff" />
+            </Field>
+          </div>
+        </div>
+      ))}
+
+      {success && <div className="success-flash">✅ Changelog entries written to Google Sheets!</div>}
+
+      <div className="btn-row">
+        <button className="btn btn-primary" onClick={handleWrite} disabled={loading || !apiUrl}>
+          {loading ? <><span className="spinner" /> Writing…</> : `📤 Write ${entries.length} Entr${entries.length > 1 ? 'ies' : 'y'} to Google Sheets`}
+        </button>
+        <button className="btn btn-secondary" onClick={addEntry}>+ Add Another Entry</button>
+        <a href={TAB_URLS.changelog} target="_blank" className="btn btn-ghost">Open Changelog ↗</a>
+      </div>
+    </div>
+  );
+}
+
+// ── Column Reference ───────────────────────────────────────────────────────
+function ColumnRefSection() {
+  const [search, setSearch] = useState('');
+  const allFields = [
+    { col:'A', label:'Metric Name',                       desc:'Unique name; frozen column.' },
+    { col:'B', label:'Metric Type',                       desc:`Dropdown: ${METRIC_TYPES.join(' | ')}` },
+    { col:'C', label:'Domain',                            desc:`Dropdown: ${DOMAINS.join(' | ')}` },
+    { col:'D', label:'Category',                          desc:'Business category this metric belongs to.' },
+    { col:'E', label:'Lifecycle State',                   desc:'Customer | Subscriber | Visitor' },
+    { col:'F', label:'Business Objective',                desc:'1–2 sentence plain-English goal.' },
+    { col:'G', label:'Executive-Friendly Definition',     desc:'What it measures, for a non-technical audience.' },
+    { col:'H', label:'Why It Matters',                    desc:'How leadership uses this metric.' },
+    { col:'I', label:'Calculation Summary',               desc:'Step-by-step logic in plain English.' },
+    { col:'J', label:'Formula / SQL Reference',           desc:'Link to SQL/LookML or inline formula.' },
+    { col:'K', label:'Numerator',                         desc:'Numerator of the metric formula.' },
+    { col:'L', label:'Denominator',                       desc:'Denominator (N/A for counts/sums).' },
+    { col:'M', label:'Metric Grain',                      desc:`${METRIC_GRAINS.join(' | ')}` },
+    { col:'N', label:'Time Window',                       desc:`${TIME_WINDOWS.join(' | ')}` },
+    { col:'O', label:'Inclusions / Filters',              desc:"What's explicitly included." },
+    { col:'P', label:'Exclusions',                        desc:"What's explicitly excluded." },
+    { col:'Q', label:'Primary Dimensions',               desc:'How the metric can be sliced.' },
+    { col:'R', label:'System of Record',                  desc:'The single authoritative source system.' },
+    { col:'S', label:'Data Sources (Systems)',            desc:'All systems contributing data. Semicolons.' },
+    { col:'T', label:'BigQuery Dataset.Table(s)',         desc:'Exact BQ table references. Semicolons.' },
+    { col:'U', label:'Looker Explore/View/Measure',       desc:'Looker path for this metric.' },
+    { col:'V', label:'Owner (Accountable)',               desc:'Team or person responsible.' },
+    { col:'W', label:'Primary Stakeholders',             desc:'Teams that use or rely on this metric.' },
+    { col:'X', label:'Refresh Cadence',                   desc:'How often data is refreshed.' },
+    { col:'Y', label:'Data SLA',                          desc:'When data is available after refresh.' },
+    { col:'Z', label:'Last Validated Date',               desc:'Date of last QA check.' },
+    { col:'AA', label:'Validation Method',                desc:'How to validate this metric.' },
+    { col:'AB', label:'Known Caveats / Gotchas',          desc:'Anomalies, edge cases, known issues.' },
+    { col:'AC', label:'Upstream Dependencies',            desc:'ETL pipelines, flags, transforms.' },
+    { col:'AD', label:'Downstream Assets',                desc:'Dashboards/reports where this metric appears.' },
+    { col:'AE', label:'Targets / Thresholds',             desc:'Goal or alert threshold.' },
+    { col:'AF', label:'Alerting',                         desc:'Yes/No + where alerting is configured.' },
+    { col:'AG', label:'Action Triggered When Moves',      desc:'What to investigate if metric changes unexpectedly.' },
+    { col:'AH', label:'Status',                           desc:'Draft | Approved | Deprecated' },
+    { col:'AI', label:'Version',                          desc:'v1.0, v1.1, v2.0, etc.' },
+    { col:'AJ', label:'Notes',                            desc:'Free-form notes.' },
+  ];
+  const filtered = allFields.filter(f =>
+    !search || [f.col, f.label, f.desc].some(v => v.toLowerCase().includes(search.toLowerCase()))
+  );
+  return (
+    <div>
+      <QuickLinks />
+      <div className="card">
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search columns…" style={{marginBottom:16}} />
+        <table className="log-table">
+          <thead><tr><th style={{width:60}}>Col</th><th>Field</th><th>Description</th></tr></thead>
+          <tbody>
+            {filtered.map(f => (
+              <tr key={f.col}>
+                <td><strong style={{fontFamily:'monospace',background:'#f0f4f0',padding:'2px 6px',borderRadius:4,color:'#2e7d32'}}>{f.col}</strong></td>
+                <td style={{fontWeight:600,whiteSpace:'nowrap'}}>{f.label}</td>
+                <td style={{fontSize:12,color:'#555'}}>{f.desc}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="card">
+        <div className="card-title">📐 Version Bump Rules</div>
+        <table className="log-table">
+          <thead><tr><th>Situation</th><th>Version Change</th></tr></thead>
+          <tbody>
+            <tr><td>New metric</td><td><strong>v1.0</strong></td></tr>
+            <tr><td>Minor field update (ownership, notes, SLA)</td><td>v1.x → <strong>v1.x+1</strong> (patch)</td></tr>
+            <tr><td>Definition or formula change</td><td>v1.x → <strong>v2.0</strong> (minor bump)</td></tr>
+            <tr><td>Status change to Approved</td><td>Bump minor version</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Sidebar & App ─────────────────────────────────────────────────────────
+const SECTIONS = [
+  { key:'add-metric',    label:'Add Metric',        icon:'➕', group:'KPI Dictionary' },
+  { key:'update-metric', label:'Update Metric',     icon:'✏️',  group:'KPI Dictionary' },
+  { key:'deprecate',     label:'Deprecate Metric',  icon:'🗑', group:'KPI Dictionary' },
+  { key:'data-sources',  label:'Data Sources',      icon:'🗄️',  group:'Sources & Deps' },
+  { key:'dependencies',  label:'Dependencies',      icon:'🔗', group:'Sources & Deps' },
+  { key:'changelog',     label:'Changelog',         icon:'📋', group:'Audit' },
+  { key:'column-ref',    label:'Column Reference',  icon:'📖', group:'Reference' },
+  { key:'settings',      label:'Settings',          icon:'⚙️', group:'Reference' },
+];
+const PAGE_TITLES = {
+  'add-metric':    { title:'Add New Metric',         desc:'Fill in the form and click Write to push directly to KPI Dictionary, Dependencies, and Changelog.' },
+  'update-metric': { title:'Update Existing Metric', desc:'Select the field to update — changes are written to the sheet and logged in Changelog automatically.' },
+  'deprecate':     { title:'Deprecate a Metric',     desc:'Mark a metric as deprecated and log the change in one step.' },
+  'data-sources':  { title:'Data Sources',           desc:'Add or update a data source in the Data Sources tab.' },
+  'dependencies':  { title:'Dependencies',           desc:'Add or update a dependency row mapping upstream tables → downstream consumers.' },
+  'changelog':     { title:'Log Changelog Entry',    desc:'Log one or more changes directly to the Changelog tab.' },
+  'column-ref':    { title:'Column Reference',       desc:'Full reference for all 36 KPI Dictionary columns and valid dropdown values.' },
+  'settings':      { title:'Settings & Setup',       desc:'Connect this app to your Google Sheets by deploying the Apps Script backend.' },
+};
+
+function SettingsSection({ apiUrl, setApiUrl, toast }) {
+  const [showSetup, setShowSetup] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [connStatus, setConnStatus] = useState(apiUrl ? 'unknown' : 'disconnected');
+
+  const retest = async () => {
+    if (!apiUrl) return;
+    setTesting(true); setConnStatus('checking');
+    try {
+      const ok = await testConnection(apiUrl);
+      setConnStatus(ok ? 'connected' : 'failed');
+    } catch(err) {
+      setConnStatus(err.message === 'AUTH_REDIRECT' ? 'auth_redirect' : 'failed');
+    }
+    setTesting(false);
+  };
+
+  useEffect(() => { if (apiUrl) retest(); }, []);
+
+  const handleSave = (url) => {
+    setApiUrl(url);
+    setShowSetup(false);
+    toast('✓ Connected to Google Sheets!');
+    setTimeout(() => retest(), 500);
+  };
+  const handleDisconnect = () => {
+    localStorage.removeItem(LS_URL_KEY);
+    setApiUrl('');
+    setConnStatus('disconnected');
+    toast('Disconnected from Google Sheets', 'warning');
+  };
+
+  return (
+    <div>
+      <div className="card">
+        <div className="card-title">🔌 Google Sheets Connection</div>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
+          <div className={`conn-dot ${connStatus === 'connected' ? 'connected' : connStatus === 'checking' ? 'checking' : 'disconnected'}`} style={{width:12,height:12,borderRadius:'50%'}} />
+          <span style={{fontSize:14,fontWeight:600,color: connStatus === 'connected' ? '#2e7d32' : connStatus === 'checking' ? '#f57f17' : '#b71c1c'}}>
+            {connStatus === 'connected'     ? 'Connected'
+            : connStatus === 'checking'     ? 'Testing…'
+            : connStatus === 'auth_redirect'? 'Auth error — change access to "Anyone"'
+            : connStatus === 'failed'       ? 'Connection failed — click Reconfigure'
+            : 'Not connected'}
+          </span>
+        </div>
+        {apiUrl && (
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:12,color:'#888',marginBottom:4}}>Web App URL</div>
+            <div style={{fontFamily:'monospace',fontSize:12,background:'#f5f5f2',padding:'8px 12px',borderRadius:6,wordBreak:'break-all',color:'#444'}}>
+              {apiUrl}
+            </div>
+          </div>
+        )}
+        <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+          <button className="btn btn-primary" onClick={() => setShowSetup(true)}>
+            {apiUrl ? '🔧 Reconfigure' : '🔧 Run Setup'}
+          </button>
+          {apiUrl && (
+            <>
+              <button className="btn btn-secondary" onClick={retest} disabled={testing}>
+                {testing ? <><span className="spinner spinner-green" /> Testing…</> : '↻ Test Connection'}
+              </button>
+              <button className="btn btn-ghost" onClick={handleDisconnect}>Disconnect</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">📄 Apps Script File</div>
+        <p style={{fontSize:13,color:'#555', marginBottom:12}}>
+          The file <strong>nara-dictionary-api.gs</strong> is saved in the same folder as this HTML file. It's the backend script you deploy to Google Apps Script.
+        </p>
+        <p style={{fontSize:13,color:'#555'}}>
+          If you ever need to update the script (e.g. to add new tabs or actions), edit the .gs file, paste it into Apps Script, and click <strong>Deploy ₒ Manage deployments → New version</strong>.
+        </p>
+      </div>
+
+      {showSetup && <SetupModal onSave={handleSave} onClose={() => setShowSetup(false)} initialUrl={apiUrl} />}
+    </div>
+  );
+}
+
+function App() {
+  const [active,  setActive]  = useState('add-metric');
+  const [apiUrl,  setApiUrl]  = useState(() => localStorage.getItem(LS_URL_KEY) || '');
+  const [showSetup, setSetup] = useState(false);
+  const [connOk,  setConnOk]  = useState(null); // null=unknown, true, false
+  const { toasts, show: toast } = useToast();
+
+  // Check connection on load if URL is saved
+  useEffect(() => {
+    if (!apiUrl) return;
+    setConnOk(null);
+    testConnection(apiUrl)
+      .then(ok => setConnOk(ok))
+      .catch(() => setConnOk(false));
+  }, [apiUrl]);
+
+  const handleSetApiUrl = (url) => { setApiUrl(url); };
+
+  const groups = [...new Set(SECTIONS.map(s => s.group))];
+  const title  = PAGE_TITLES[active];
+
+  const sectionProps = { apiUrl, toast, onSetup: () => setActive('settings') };
+
+  const renderSection = () => {
+    switch (active) {
+      case 'add-metric':    return <AddMetricSection    {...sectionProps} />;
+      case 'update-metric': return <UpdateMetricSection {...sectionProps} />;
+      case 'deprecate':     return <DeprecateMetricSection {...sectionProps} />;
+      case 'data-sources':  return <DataSourcesSection  {...sectionProps} />;
+      case 'dependencies':  return <DependenciesSection {...sectionProps} />;
+      case 'changelog':     return <ChangelogSection    {...sectionProps} />;
+      case 'column-ref':    return <ColumnRefSection />;
+      case 'settings':      return <SettingsSection apiUrl={apiUrl} setApiUrl={handleSetApiUrl} toast={toast} />;
+      default: return null;
+    }
+  };
+
+  const connLabel = connOk === true ? 'Connected' : connOk === false ? 'Disconnected' : apiUrl ? 'Checking…' : 'Not set up';
+  const connClass = connOk === true ? 'connected' : connOk === null && apiUrl ? 'checking' : 'disconnected';
+
+  return (
+    <div className="app">
+      <div className="sidebar">
+        <div className="sidebar-logo">
+          <h1>🌿 Nara</h1>
+          <p>Data Dictionary Manager</p>
+        </div>
+
+        <div className="sidebar-nav">
+          {groups.map(group => (
+            <div key={group} className="nav-group">
+              <div className="nav-group-label">{group}</div>
+              {SECTIONS.filter(s => s.group === group).map(s => (
+                <div key={s.key} className={`nav-item ${active === s.key ? 'active' : ''}`} onClick={() => setActive(s.key)}>
+                  <span className="nav-icon">{s.icon}</span>
+                  <span>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="conn-badge" onClick={() => setActive('settings')}>
+            <div className={`conn-dot ${connClass}`} />
+            <span style={{fontSize:12, color: connOk === true ? '#7ecb7e' : 'rgba(255,255,255,0.4)'}}>{connLabel}</span>
+          </div>
+          <a href={SHEET_URL} target="_blank" className="sheet-link">📊"Open Spreadsheet ↗</a>
+        </div>
+      </div>
+
+      <div className="main">
+        <div className="page-header">
+          <h2>{title.title}</h2>
+          <p>{title.desc}</p>
+        </div>
+        {renderSection()}
+      </div>
+
+      <ToastContainer toasts={toasts} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
